@@ -4,7 +4,7 @@ LOdoo
 
 CLI to manage locally-installed Odoo.
 
-This script is used by [odoo-helper-scripts](https://katyukha.gitlab.io/odoo-helper-scripts/quick-start-guide/)
+This script is used by [odoo-helper-scripts](https://katyukha.gitlab.io/odoo-helper-scripts/)
 to manage locally-installed odoo.
 
 For example, it provides CLI commands, like:
