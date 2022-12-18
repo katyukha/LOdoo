@@ -6,6 +6,6 @@
 .coverage
 htmlcov
 /venv/
-/lodoo.egg-info
+lodoo.egg-info
 /build
 /dist
