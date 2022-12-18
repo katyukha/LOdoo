@@ -5,4 +5,5 @@
 .ropeproject/
 .coverage
 htmlcov
-
+/venv/
+/lodoo.egg-info
