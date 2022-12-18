@@ -8,6 +8,7 @@ This script is used by [odoo-helper-scripts](https://katyukha.gitlab.io/odoo-hel
 to manage locally-installed odoo.
 
 For example, it provides CLI commands, like:
+
 - addons-uninstall
 - addons-update-list
 - db-backup
