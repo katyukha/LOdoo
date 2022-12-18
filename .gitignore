@@ -1,0 +1,8 @@
+*.py[ow]
+*.sw[npo]
+*.idea/
+*~
+.ropeproject/
+.coverage
+htmlcov
+
