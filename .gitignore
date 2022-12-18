@@ -7,3 +7,5 @@
 htmlcov
 /venv/
 /lodoo.egg-info
+/build
+/dist
