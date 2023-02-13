@@ -354,7 +354,7 @@ class LOdoo(object):
             cls.__lodoo = super(LOdoo, cls).__new__(cls)
         return cls.__lodoo
 
-    def __init__(self, conf_path):
+    def __init__(self, conf_path=None):
         self._conf_path = conf_path
         self._odoo = None
         self._registries = {}
@@ -371,7 +371,8 @@ class LOdoo(object):
 
         if not any(
                 o.startswith('--conf') or o.startswith('-c') for o in options):
-            options += ["--conf=%s" % self._conf_path]
+            if self._conf_path:
+                options += ["--conf=%s" % self._conf_path]
 
         # Set workers = 0 if other not specified
         if not any(o.startswith('--workers') for o in options):
@@ -441,7 +442,7 @@ def cleanup():
 
 # Command Line Interface
 @click.group()
-@click.option('--conf', type=click.Path(exists=True))
+@click.option('--conf', type=click.Path(exists=True), default=None)
 @click.pass_context
 def cli(ctx, conf):
     ctx.obj = LOdoo(conf)

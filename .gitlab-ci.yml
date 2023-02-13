@@ -1,0 +1,36 @@
+stages:
+  - lint
+  - test
+
+flake8:
+  stage: lint
+  image: registry.gitlab.com/pipeline-components/flake8:latest
+  script:
+    - flake8 --verbose .
+
+
+test-16:
+  image: odoo:16.0
+  services:
+    - name: postgres:14
+      alias: db
+  variables:
+    POSTGRES_USER: odoo
+    POSTGRES_PASSWORD: odoo
+    POSTGRES_DB: postgres
+  before_script:
+    - python3 -m pip install coverage
+    - python3 -m pip install .
+    # Save configuration to file
+    - /entrypoint.sh odoo -s --stop-after-init
+  script:
+    - bash .ci/test-cli.bash
+  after_script:
+    - python3 -m coverage report
+    - coverage html
+  coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)/'
+  artifacts:
+    name: "$CI_JOB_NAME"
+    expire_in: 14 day
+    paths:
+      - htmlcov
