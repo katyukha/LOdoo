@@ -453,7 +453,8 @@ def cli(ctx, conf):
 def db_list_databases(ctx):
     ctx.obj.start_odoo(['--logfile=/dev/null'])
     dbs = ctx.obj.db.list_databases()
-    click.echo('\n'.join(['%s' % d for d in dbs]))
+    if dbs:
+        click.echo('\n'.join(['%s' % d for d in dbs]))
 
 
 @cli.command('db-create')
