@@ -9,35 +9,29 @@ flake8:
   script:
     - flake8 --verbose .
 
-
-.test-services: &test-services-definition
-  services:
-    - name: postgres:14
-      alias: db
-
 .test-variables: &test-variables-definition
   POSTGRES_USER: odoo
   POSTGRES_PASSWORD: odoo
   POSTGRES_DB: postgres
-  COV_DATA_FILE: coverage.${CI_JOB_NAME}
 
 test-16:
   image: odoo:16.0
-  <<: *test-services-definition
+  services:
+    - name: postgres:14
+      alias: db
   variables:
     <<: *test-variables-definition
-    COV_CONTEXT: "odoo:16.0"
     TEST_PY_VERSION: "3"
   before_script:
     - python3 -m pip install coverage
     - python3 -m pip install -r requirements.txt
-    #- python3 -m pip install -e .
     # Save configuration to file
     - /entrypoint.sh odoo -s --stop-after-init
   script:
     - bash .ci/test-cli.bash
   after_script:
-    - python3 -m coverage report --data-file=coverage.${CI_JOB_NAME}
+    - python3 -m coverage report
+    - mv .coverage coverage.${CI_JOB_NAME}
   coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)/'
   artifacts:
     name: "$CI_JOB_NAME"
@@ -47,10 +41,11 @@ test-16:
 
 test-15:
   image: odoo:15.0
-  <<: *test-services-definition
+  services:
+    - name: postgres:14
+      alias: db
   variables:
     <<: *test-variables-definition
-    COV_CONTEXT: "odoo:15.0"
     TEST_PY_VERSION: "3"
   before_script:
     - python3 -m pip install coverage
@@ -60,7 +55,8 @@ test-15:
   script:
     - bash .ci/test-cli.bash
   after_script:
-    - python3 -m coverage report --data-file=coverage.${CI_JOB_NAME}
+    - python3 -m coverage report
+    - mv .coverage coverage.${CI_JOB_NAME}
   coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)/'
   artifacts:
     name: "$CI_JOB_NAME"
@@ -70,10 +66,11 @@ test-15:
 
 test-14:
   image: odoo:14.0
-  <<: *test-services-definition
+  services:
+    - name: postgres:14
+      alias: db
   variables:
     <<: *test-variables-definition
-    COV_CONTEXT: "odoo:14.0"
     TEST_PY_VERSION: "3"
   before_script:
     - python3 -m pip install coverage
@@ -83,7 +80,8 @@ test-14:
   script:
     - bash .ci/test-cli.bash
   after_script:
-    - python3 -m coverage report --data-file=coverage.${CI_JOB_NAME}
+    - python3 -m coverage report
+    - mv .coverage coverage.${CI_JOB_NAME}
   coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)/'
   artifacts:
     name: "$CI_JOB_NAME"
@@ -93,10 +91,11 @@ test-14:
 
 test-13:
   image: odoo:13.0
-  <<: *test-services-definition
+  services:
+    - name: postgres:14
+      alias: db
   variables:
     <<: *test-variables-definition
-    COV_CONTEXT: "odoo:13.0"
     TEST_PY_VERSION: "3"
   before_script:
     - python3 -m pip install coverage
@@ -106,7 +105,8 @@ test-13:
   script:
     - bash .ci/test-cli.bash
   after_script:
-    - python3 -m coverage report --data-file=coverage.${CI_JOB_NAME}
+    - python3 -m coverage report
+    - mv .coverage coverage.${CI_JOB_NAME}
   coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)/'
   artifacts:
     name: "$CI_JOB_NAME"
@@ -116,10 +116,11 @@ test-13:
 
 test-12:
   image: odoo:12.0
-  <<: *test-services-definition
+  services:
+    - name: postgres:11
+      alias: db
   variables:
     <<: *test-variables-definition
-    COV_CONTEXT: "odoo:12.0"
     TEST_PY_VERSION: "3"
   before_script:
     - python3 -m pip install coverage
@@ -129,7 +130,8 @@ test-12:
   script:
     - bash .ci/test-cli.bash
   after_script:
-    - python3 -m coverage report --data-file=coverage.${CI_JOB_NAME}
+    - python3 -m coverage report
+    - mv .coverage coverage.${CI_JOB_NAME}
   coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)/'
   artifacts:
     name: "$CI_JOB_NAME"
@@ -139,10 +141,11 @@ test-12:
 
 test-11:
   image: odoo:11.0
-  <<: *test-services-definition
+  services:
+    - name: postgres:10
+      alias: db
   variables:
     <<: *test-variables-definition
-    COV_CONTEXT: "odoo:11.0"
     TEST_PY_VERSION: "3"
   before_script:
     - python3 -m pip install coverage
@@ -152,7 +155,8 @@ test-11:
   script:
     - bash .ci/test-cli.bash
   after_script:
-    - python3 -m coverage report --data-file=coverage.${CI_JOB_NAME}
+    - python3 -m coverage report
+    - mv .coverage coverage.${CI_JOB_NAME}
   coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)/'
   artifacts:
     name: "$CI_JOB_NAME"
@@ -162,20 +166,74 @@ test-11:
 
 test-10:
   image: odoo:10.0
-  <<: *test-services-definition
+  services:
+    - name: postgres:9.6
+      alias: db
   variables:
     <<: *test-variables-definition
-    COV_CONTEXT: "odoo:10.0"
     TEST_PY_VERSION: "2"
   before_script:
     - python2 -m pip install --user coverage==5
-    - python2 -m pip install .
+    - python2 -m pip install --user click==7.1.2
     # Save configuration to file
     - /entrypoint.sh odoo -s --stop-after-init
   script:
     - bash .ci/test-cli.bash
   after_script:
-    - python3 -m coverage report --data-file=coverage.${CI_JOB_NAME}
+    - python2 -m coverage report
+    - mv .coverage coverage.${CI_JOB_NAME}
+  coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)/'
+  artifacts:
+    name: "$CI_JOB_NAME"
+    expire_in: 10 day
+    paths:
+      - coverage.${CI_JOB_NAME}
+
+test-9:
+  image: odoo:9.0
+  services:
+    - name: postgres:9.4
+      alias: db
+  variables:
+    <<: *test-variables-definition
+    TEST_PY_VERSION: "2"
+  before_script:
+    - apt-get update && apt-get install python-dev
+    - python2 -m pip install --user coverage==5
+    - python2 -m pip install --user click==7.1.2
+    # Save configuration to file
+    - /entrypoint.sh openerp-server -s --stop-after-init
+  script:
+    - bash .ci/test-cli.bash
+  after_script:
+    - python2 -m coverage report
+    - mv .coverage coverage.${CI_JOB_NAME}
+  coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)/'
+  artifacts:
+    name: "$CI_JOB_NAME"
+    expire_in: 10 day
+    paths:
+      - coverage.${CI_JOB_NAME}
+
+test-8:
+  image: odoo:8.0
+  services:
+    - name: postgres:9.4
+      alias: db
+  variables:
+    <<: *test-variables-definition
+    TEST_PY_VERSION: "2"
+  before_script:
+    - apt-get update && apt-get install python-dev
+    - python2 -m pip install --user coverage==5
+    - python2 -m pip install --user click==7.1.2
+    # Save configuration to file
+    - /entrypoint.sh openerp-server -s --stop-after-init
+  script:
+    - bash .ci/test-cli.bash
+  after_script:
+    - python2 -m coverage report
+    - mv .coverage coverage.${CI_JOB_NAME}
   coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)/'
   artifacts:
     name: "$CI_JOB_NAME"
@@ -194,6 +252,8 @@ coverage:
     - test-12
     - test-11
     - test-10
+    - test-9
+    - test-8
   before_script:
     - python3 -m pip install coverage
   script:

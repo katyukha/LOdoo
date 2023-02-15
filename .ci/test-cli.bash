@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 
+SCRIPT=$0;
+SCRIPT_NAME=$(basename "$SCRIPT");
+SCRIPT_DIR=$(dirname "$SCRIPT");
+LODOO_PATH=$(realpath "$SCRIPT_DIR/../src/lodoo.py");
+WORKDIR=$(pwd);
+
+
 # Fail on any error
 set -e;
 
-[ -n "${COV_DATA_FILE}" ];
-[ -n "${COV_CONTEXT}" ];
 [ -n "${TEST_PY_VERSION}" ];
 [ "$TEST_PY_VERSION" -eq 2 ] || [ "$TEST_PY_VERSION" -eq 3 ];
 
@@ -14,7 +19,7 @@ function _python {
 
 # Run lodoo with coverage
 function _lodoo {
-    _python -m coverage run -a --data-file=${COV_DATA_FILE} --context="${COV_CONTEXT}" --source="lodoo" "$(pwd)/src/lodoo.py" "$@";
+    _python -m coverage run -a --source="lodoo" "$LODOO_PATH" "$@";
 }
 
 
