@@ -47,9 +47,11 @@ except (ImportError, KeyError):
     except ImportError:
         raise
 
-if odoo.release.version_info < (8,):
+if odoo.release.version_info < (7,):
     raise ImportError(
-        "Odoo version %s is not supported!" % odoo.release.version_info)
+        "Odoo version %(version)s is not supported!" % {
+            'version': odoo.release.version_info,
+        })
 
 _logger = logging.getLogger(__name__)
 
@@ -60,6 +62,9 @@ GREENC = '\x1b[32m'
 YELLOWC = '\x1b[33m'
 BLUEC = '\x1b[34m'
 LBLUEC = '\x1b[94m'
+
+# Check Odoo API version
+odoo._api_v7 = odoo.release.version_info < (8,)
 
 # Prepare odoo environments
 os.putenv('TZ', 'UTC')
@@ -76,10 +81,16 @@ class LocalRegistry(object):
         self._client = client
         self._dbname = dbname
 
-        self.registry = self.odoo.registry(self._dbname)
-        self.cursor = self.registry.cursor()
-        self._env = self.odoo.api.Environment(
-            self.cursor, self.odoo.SUPERUSER_ID, {})
+        if self.odoo._api_v7:
+            self.registry = self.odoo.modules.registry.RegistryManager.get(
+                self._dbname)
+            self._cursor = self.registry.db.cursor()
+            self._env = None
+        else:
+            self.registry = self.odoo.registry(self._dbname)
+            self._cursor = self.registry.cursor()
+            self._env = self.odoo.api.Environment(
+                self._cursor, self.odoo.SUPERUSER_ID, {})
 
     @property
     def odoo(self):
@@ -91,6 +102,9 @@ class LocalRegistry(object):
     def env(self):
         """ Reprepsentation of current environment
         """
+        if self.odoo._api_v7:
+            raise NotImplementedError(
+                "Using *env* is not supported for this Odoo version")
         return self._env
 
     @property
@@ -98,6 +112,29 @@ class LocalRegistry(object):
         """ Database cursor
         """
         return self.env.cr
+
+    def cursor(self):
+        """ Return new database cursor
+        """
+        if self.odoo._api_v7:
+            class CursorWrapper:
+                def __init__(self, cr):
+                    self._cr = cr
+
+                def __enter__(self):
+                    return self._cr
+
+                def __exit__(self, exc_type, exc_value, traceback):
+                    if exc_type is None:
+                        self._cr.commit()
+                    self._cr.close()
+
+                def __getattr__(self, name):
+                    return getattr(self._cr, name)
+
+            return CursorWrapper(self.registry.db.cursor())
+
+        return self.registry.cursor()
 
     def recompute_fields(self, model, fields):
         """ Recompute specifed model fields
@@ -266,6 +303,15 @@ class LocalRegistry(object):
             _logger.error("Error", exc_info=True)
             raise
 
+    def update_module_list(self):
+        if self.odoo._api_v7:
+            with self.cursor() as cr:
+                return self.registry['ir.module.module'].update_list(cr, 1)
+
+        updated, added = self['ir.module.module'].update_list()
+        self.cr.commit()
+        return updated, added
+
     def __getitem__(self, name):
         return self.env[name]
 
@@ -288,11 +334,42 @@ class LocalDBService(object):
     @property
     def dispatch(self):
         if self._dispatch is None:
-            self._dispatch = functools.partial(
-                self.odoo.http.dispatch_rpc, 'db')
+            if self.odoo._api_v7:
+                self._dispatch = (
+                    self.odoo.netsvc.ExportService.getService('db').dispatch)
+            else:
+                self._dispatch = functools.partial(
+                    self.odoo.http.dispatch_rpc, 'db')
         return self._dispatch
 
+    def cursor(self, dbname):
+        """ Get cursor for specified database name.
+        """
+        if self.odoo._api_v7:
+            class CursorWrapper:
+                def __init__(self, cr):
+                    self._cr = cr
+
+                def __enter__(self):
+                    return self._cr
+
+                def __exit__(self, exc_type, exc_value, traceback):
+                    if exc_type is None:
+                        self._cr.commit()
+                    self._cr.close()
+
+                def __getattr__(self, name):
+                    return getattr(self._cr, name)
+
+            registry = self.odoo.modules.registry.RegistryManager.get(dbname)
+            return CursorWrapper(registry.db.cursor())
+
+        return self.odoo.registry(dbname).cursor()
+
     def create_database(self, *args, **kwargs):
+        if self.odoo._api_v7:
+            return self.odoo.netsvc.ExportService.getService('db').exp_create(
+                *args, **kwargs)
         return self.odoo.service.db.exp_create_database(*args, **kwargs)
 
     def list_databases(self):
@@ -300,11 +377,82 @@ class LocalDBService(object):
             return self.list()
         return self.odoo.service.db.list_dbs(True)
 
+    def _restore_database_v7(self, db_name, file_path):
+        """ Implement specific restore of database for Odoo 7.0
+        """
+        db_service = self.odoo.netsvc.ExportService.getService('db')
+        with db_service._set_pg_password_in_environment():
+            if db_service.exp_db_exist(db_name):
+                _logger.warning('RESTORE DB: %s already exists', db_name)
+                raise Exception("Database already exists")
+
+            db_service._create_empty_database(db_name)
+
+            cmd = ['pg_restore', '--no-owner']
+            if self.odoo.tools.config['db_user']:
+                cmd.append('--username=' + self.odoo.tools.config['db_user'])
+            if self.odoo.tools.config['db_host']:
+                cmd.append('--host=' + self.odoo.tools.config['db_host'])
+            if self.odoo.tools.config['db_port']:
+                cmd.append('--port=' + str(self.odoo.tools.config['db_port']))
+            cmd.append('--dbname=' + db_name)
+            cmd.append(file_path)
+            args2 = tuple(cmd)
+
+            stdin, stdout = self.odoo.tools.exec_pg_command_pipe(*args2)
+            stdin.close()
+            res = stdout.close()
+            if res:
+                raise Exception("Couldn't restore database")
+            _logger.info('RESTORE DB: %s', db_name)
+
+            return True
+
     def restore_database(self, db_name, dump_file):
+        if self.odoo._api_v7:
+            return self._restore_database_v7(db_name, dump_file)
+
         self.odoo.service.db.restore_db(db_name, dump_file)
         return True
 
+    def _backup_database_v7(self, db_name, file_path):
+        """ Implement specific backup of database for Odoo 7.0
+        """
+        db_service = self.odoo.netsvc.ExportService.getService('db')
+        with db_service._set_pg_password_in_environment():
+            cmd = ['pg_dump', '--format=c', '--no-owner']
+            if self.odoo.tools.config['db_user']:
+                cmd.append('--username=' + self.odoo.tools.config['db_user'])
+            if self.odoo.tools.config['db_host']:
+                cmd.append('--host=' + self.odoo.tools.config['db_host'])
+            if self.odoo.tools.config['db_port']:
+                cmd.append('--port=' + str(self.odoo.tools.config['db_port']))
+            cmd.append(db_name)
+
+            stdin, stdout = self.odoo.tools.exec_pg_command_pipe(*tuple(cmd))
+            stdin.close()
+            with open(file_path, 'wb') as f:
+                import shutil
+                shutil.copyfileobj(stdout, f)
+            res = stdout.close()
+
+        if res:
+            _logger.error(
+                'DUMP DB: %s failed! Please verify the configuration of '
+                'the database password on the server. '
+                'You may need to create a .pgpass file for '
+                'authentication, or specify `db_password` in the '
+                'server configuration file.', db_name)
+            raise Exception("Couldn't dump database")
+        _logger.info('DUMP DB successful: %s', db_name)
+        return True
+
     def backup_database(self, db_name, backup_format, file_path):
+        if self.odoo._api_v7:
+            if backup_format != 'sql':
+                raise Exception("Odoo v7 does not support non-sql backups!")
+            return self._backup_database_v7(db_name, file_path)
+
         with open(file_path, 'wb') as f:
             self.odoo.service.db.dump_db(db_name, f, backup_format)
         return True
@@ -314,8 +462,8 @@ class LocalDBService(object):
 
             :return str: JSON representation of manifest
         """
-        registry = self.odoo.registry(dbname)
-        with registry.cursor() as cr:
+
+        with self.cursor(dbname) as cr:
             # Just copy-paste from original Odoo code
             pg_version = "%d.%d" % divmod(
                 cr._obj.connection.server_version / 100, 100)
@@ -387,13 +535,16 @@ class LOdoo(object):
         if odoo.tools.config.get('sentry_enabled', False):
             odoo.tools.config['sentry_enabled'] = False
 
-        if odoo.release.version_info < (15,):
+        if (8,) <= odoo.release.version_info < (15,):
             if not hasattr(odoo.api.Environment._local, 'environments'):
                 odoo.api.Environment._local.environments = (
                     odoo.api.Environments())
 
-        # Load server-wide modules
-        odoo.service.server.load_server_wide_modules()
+        if odoo.release.version_info < (8,):
+            odoo.service.start_internal()
+        else:
+            # Load server-wide modules
+            odoo.service.server.load_server_wide_modules()
 
         # Save odoo var on object level
         self._odoo = odoo
@@ -581,8 +732,7 @@ def addons_update_module_list(ctx, dbname):
     )
 
     db = ctx.obj[dbname]
-    updated, added = db['ir.module.module'].update_list()
-    db.cursor.commit()
+    updated, added = db.update_module_list()
     click.echo("updated: %d\nadded: %d\n" % (updated, added))
 
 
