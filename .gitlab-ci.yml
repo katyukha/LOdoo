@@ -241,6 +241,30 @@ test-8:
     paths:
       - coverage.${CI_JOB_NAME}
 
+test-7:
+  image: ubuntu:22.04
+  services:
+    - name: postgres:14
+      alias: db
+  variables:
+    <<: *test-variables-definition
+    TEST_DB_HOST: "db"
+    TEST_PY_VERSION: "2"
+    TEST_V7_ROOT: "$CI_PROJECT_DIR"
+  before_script:
+    - bash .ci/v7/init.bash
+  script:
+    - sudo -u odoo -HE bash .ci/test-cli.bash
+  after_script:
+    - sudo -u odoo -HE $CI_PROJECT_DIR/odoo/venv/bin/python2 -m coverage report
+    - mv .coverage coverage.${CI_JOB_NAME}
+  coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)/'
+  artifacts:
+    name: "$CI_JOB_NAME"
+    expire_in: 10 day
+    paths:
+      - coverage.${CI_JOB_NAME}
+
 
 coverage:
   image: odoo:16.0
@@ -254,6 +278,7 @@ coverage:
     - test-10
     - test-9
     - test-8
+    - test-7
   before_script:
     - python3 -m pip install coverage
   script:
