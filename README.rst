@@ -24,3 +24,19 @@ For example, it provides CLI commands, like:
 - run-py-script
 - tr-check-translation-rate
 - tr-generate-pot-file
+
+
+Supported odoo versions
+-----------------------
+
+- Odoo 16.0
+- Odoo 15.0
+- Odoo 14.0
+- Odoo 13.0
+- Odoo 12.0
+- Odoo 11.0
+- Odoo 10.0
+- Odoo 9.0
+- Odoo 8.0
+- Odoo 7.0 (Limited support)
+
