@@ -145,8 +145,16 @@ class LocalRegistry(object):
         Model = self.env[model]
         records = Model.search([])
         for field in fields:
-            self.env.add_todo(Model._fields[field], records)
-        Model.recompute()
+            if odoo.release.version_info < (17,):
+                self.env.add_todo(Model._fields[field], records)
+            else:
+                self.env.add_to_compute(Model._fields[field], records)
+
+        if odoo.release.version_info < (17,):
+            Model.recompute()
+        else:
+            Model.flush_model()
+
         self.env.cr.commit()
 
     def recompute_parent_store(self, model):

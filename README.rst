@@ -29,6 +29,8 @@ For example, it provides CLI commands, like:
 Supported odoo versions
 -----------------------
 
+- Odoo 18.0
+- Odoo 17.0
 - Odoo 16.0
 - Odoo 15.0
 - Odoo 14.0
