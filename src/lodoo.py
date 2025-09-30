@@ -52,6 +52,9 @@ if odoo.release.version_info < (7,):
         "Odoo version %(version)s is not supported!" % {
             'version': odoo.release.version_info,
         })
+if odoo.release.version_info > (18,):
+    import odoo.modules
+    import odoo.service
 
 _logger = logging.getLogger(__name__)
 
@@ -590,7 +593,7 @@ def cleanup():
     """
     if odoo.release.version_info < (10,):
         dbnames = odoo.modules.registry.RegistryManager.registries.keys()
-    elif odoo.release.version_info < (13,):
+    elif odoo.release.version_info < (13,) or odoo.release.version_info > (18,):
         dbnames = odoo.modules.registry.Registry.registries.keys()
     else:
         dbnames = odoo.modules.registry.Registry.registries.d.keys()
