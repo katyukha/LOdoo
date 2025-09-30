@@ -89,11 +89,17 @@ class LocalRegistry(object):
                 self._dbname)
             self._cursor = self.registry.db.cursor()
             self._env = None
-        else:
+        elif odoo.release.version_info < (18,):
             self.registry = self.odoo.registry(self._dbname)
             self._cursor = self.registry.cursor()
             self._env = self.odoo.api.Environment(
                 self._cursor, self.odoo.SUPERUSER_ID, {})
+        else:
+            self.registry = self.odoo.modules.registry.Registry(self._dbname)
+            self._cursor = self.registry.cursor()
+            self._env = self.odoo.api.Environment(
+                self._cursor, self.odoo.SUPERUSER_ID, {})
+
 
     @property
     def odoo(self):
