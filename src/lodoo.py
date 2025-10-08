@@ -74,6 +74,18 @@ os.putenv('TZ', 'UTC')
 os.putenv('PGAPPNAME', 'lodoo')
 
 
+def get_registry(dbname):
+    """ Return registry instance for specified database
+        This is compatibility function to support multiple odoo versions
+    """
+    if odoo._api_v7:
+        return odoo.modules.registry.RegistryManager.get(dbname)
+    elif odoo.release.version_info < (18,):
+        return odoo.registry(dbname)
+
+    return odoo.modules.registry.Registry(dbname)
+
+
 class LocalRegistry(object):
     """ Simple proxy for Odoo registry.
         Instances of this class represents connection to odoo database.
@@ -83,19 +95,16 @@ class LocalRegistry(object):
     def __init__(self, client, dbname):
         self._client = client
         self._dbname = dbname
+        self.registry = get_registry(dbname)
 
         if self.odoo._api_v7:
-            self.registry = self.odoo.modules.registry.RegistryManager.get(
-                self._dbname)
             self._cursor = self.registry.db.cursor()
             self._env = None
         elif odoo.release.version_info < (18,):
-            self.registry = self.odoo.registry(self._dbname)
             self._cursor = self.registry.cursor()
             self._env = self.odoo.api.Environment(
                 self._cursor, self.odoo.SUPERUSER_ID, {})
         else:
-            self.registry = self.odoo.modules.registry.Registry(self._dbname)
             self._cursor = self.registry.cursor()
             self._env = self.odoo.api.Environment(
                 self._cursor, self.odoo.SUPERUSER_ID, {})
@@ -361,6 +370,7 @@ class LocalDBService(object):
     def cursor(self, dbname):
         """ Get cursor for specified database name.
         """
+        registry = get_registry(dbname)
         if self.odoo._api_v7:
             class CursorWrapper:
                 def __init__(self, cr):
@@ -377,10 +387,9 @@ class LocalDBService(object):
                 def __getattr__(self, name):
                     return getattr(self._cr, name)
 
-            registry = self.odoo.modules.registry.RegistryManager.get(dbname)
             return CursorWrapper(registry.db.cursor())
 
-        return self.odoo.registry(dbname).cursor()
+        return registry.cursor()
 
     def create_database(self, *args, **kwargs):
         if self.odoo._api_v7:
