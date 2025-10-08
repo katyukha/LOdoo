@@ -100,7 +100,6 @@ class LocalRegistry(object):
             self._env = self.odoo.api.Environment(
                 self._cursor, self.odoo.SUPERUSER_ID, {})
 
-
     @property
     def odoo(self):
         """ Representation of odoo module
@@ -599,7 +598,9 @@ def cleanup():
     """
     if odoo.release.version_info < (10,):
         dbnames = odoo.modules.registry.RegistryManager.registries.keys()
-    elif odoo.release.version_info < (13,) or odoo.release.version_info > (18,):
+    elif (
+        odoo.release.version_info < (13,) or odoo.release.version_info > (18,)
+    ):
         dbnames = odoo.modules.registry.Registry.registries.keys()
     else:
         dbnames = odoo.modules.registry.Registry.registries.d.keys()
