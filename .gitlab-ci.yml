@@ -23,8 +23,8 @@ test-19:
     <<: *test-variables-definition
     TEST_PY_VERSION: "3"
   before_script:
-    - python3 -m pip install coverage
-    - python3 -m pip install -r requirements.txt
+    - python3 -m pip install --break-system-packages coverage
+    - python3 -m pip install --break-system-packages -r requirements.txt
     # Save configuration to file
     - /entrypoint.sh odoo -s --stop-after-init
   script:
@@ -48,8 +48,8 @@ test-18:
     <<: *test-variables-definition
     TEST_PY_VERSION: "3"
   before_script:
-    - python3 -m pip install coverage
-    - python3 -m pip install -r requirements.txt
+    - python3 -m pip install --break-system-packages coverage
+    - python3 -m pip install --break-system-packages -r requirements.txt
     # Save configuration to file
     - /entrypoint.sh odoo -s --stop-after-init
   script:
@@ -142,7 +142,7 @@ test-15:
 test-14:
   image: odoo:14.0
   services:
-    - name: postgres:14
+    - name: postgres:15
       alias: db
   variables:
     <<: *test-variables-definition
@@ -345,6 +345,9 @@ coverage:
   image: odoo:16.0
   stage: coverage
   dependencies:
+    - test-19
+    - test-18
+    - test-17
     - test-16
     - test-15
     - test-13
