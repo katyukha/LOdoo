@@ -22,7 +22,6 @@ import atexit
 import logging
 import functools
 import contextlib
-import pkg_resources
 
 import click
 
@@ -35,6 +34,7 @@ try:
     # Also, this needed to make odoo10 work, if running this script with
     # current working directory set to project root
     if sys.version_info.major == 2:
+        import pkg_resources
         pkg_resources.declare_namespace('odoo.addons')
 
     # import odoo itself
