@@ -661,6 +661,15 @@ def db_exists_database(ctx, dbname):
     if not success:
         ctx.exit(1)
 
+@cli.command('db-is-initialized')
+@click.argument('dbname')
+@click.pass_context
+def db_is_initialized_database(ctx, dbname):
+    ctx.obj.start_odoo(['--logfile=/dev/null'])
+    success = ctx.obj.db.is_initialized(dbname)
+    if not success:
+        ctx.exit(1)
+
 
 @cli.command('db-drop')
 @click.argument('dbname')
