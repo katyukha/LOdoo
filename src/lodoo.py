@@ -68,6 +68,7 @@ LBLUEC = '\x1b[94m'
 
 # Check Odoo API version
 odoo._api_v7 = odoo.release.version_info < (8,)
+odoo._api_v16 = odoo.release.version_info < (17,)
 
 # Prepare odoo environments
 os.putenv('TZ', 'UTC')
