@@ -402,6 +402,9 @@ class LocalDBService(object):
             return self.list()
         return self.odoo.service.db.list_dbs(True)
 
+    def is_initialized(self):
+        return self.odoo.modules.db.is_initialized()
+
     def _restore_database_v7(self, db_name, file_path):
         """ Implement specific restore of database for Odoo 7.0
         """
@@ -665,7 +668,7 @@ def db_exists_database(ctx, dbname):
 @click.argument('dbname')
 @click.pass_context
 def db_is_initialized_database(ctx, dbname):
-    ctx.obj.start_odoo(['--logfile=/dev/null'])
+    ctx.obj.start_odoo()
     success = ctx.obj.db.is_initialized(dbname)
     if not success:
         ctx.exit(1)
