@@ -409,6 +409,11 @@ class LocalDBService(object):
             success = self.odoo.modules.db.is_initialized(cr)
         return success
 
+    def initialize(self, dbname):
+        with self.cursor(dbname) as cr:
+            self.odoo.modules.db.initialize(cr)
+            cr.commit()
+
     def _restore_database_v7(self, db_name, file_path):
         """ Implement specific restore of database for Odoo 7.0
         """
@@ -540,7 +545,7 @@ class LOdoo(object):
         self._registries = {}
         self._db_service = None
 
-    def start_odoo(self, options=None, no_http=False):
+    def start_odoo(self, options=None, no_http=False, initialize=False):
         """ Start the odoo services.
             Optionally provide extra options
         """
@@ -562,6 +567,9 @@ class LOdoo(object):
             options.append('--no-xmlrpc')
         elif no_http:
             options.append('--no-http')
+
+        if initialize:
+            options.append('--init=base,web')
 
         odoo.tools.config.parse_config(options)
         if odoo.tools.config.get('sentry_enabled', False):
@@ -672,14 +680,17 @@ def db_exists_database(ctx, dbname):
 @click.argument('dbname')
 @click.pass_context
 def db_is_initialized_database(ctx, dbname):
-    ctx.obj.start_odoo()
-    print(ctx.obj)
-    print(ctx.obj.db)
-    print(dir(ctx.obj.db))
-    print(dbname)
+    ctx.obj.start_odoo(['--logfile=/dev/null'])
     success = ctx.obj.db.is_initialized(dbname)
     if not success:
         ctx.exit(1)
+
+@cli.command('db-initialize')
+@click.argument('dbname')
+@click.pass_context
+def db_initialize_database(ctx, dbname):
+    ctx.obj.start_odoo(initialize=True)
+    # ctx.obj.db.initialize(dbname)
 
 
 @cli.command('db-drop')

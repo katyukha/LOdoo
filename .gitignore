@@ -9,3 +9,4 @@ htmlcov
 lodoo.egg-info
 /build
 /dist
+/config
