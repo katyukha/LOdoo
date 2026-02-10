@@ -409,10 +409,12 @@ class LocalDBService(object):
             success = self.odoo.modules.db.is_initialized(cr)
         return success
 
-    def initialize(self, dbname):
-        with self.cursor(dbname) as cr:
-            self.odoo.modules.db.initialize(cr)
-            cr.commit()
+    def initialize(self, dbname, demo, lang, **kwargs):
+        self.odoo.service.db._initialize(dbname, demo, lang, **kwargs)
+        # with self.cursor(dbname) as cr:
+        #     self.odoo.modules.db.initialize(cr)
+        #     cr.commit()
+
 
     def _restore_database_v7(self, db_name, file_path):
         """ Implement specific restore of database for Odoo 7.0
@@ -680,21 +682,26 @@ def db_exists_database(ctx, dbname):
 @click.argument('dbname')
 @click.pass_context
 def db_is_initialized_database(ctx, dbname):
-    ctx.obj.start_odoo()
+    ctx.obj.start_odoo(['--logfile=/dev/null'])
     success = ctx.obj.db.is_initialized(dbname)
     if not success:
         ctx.exit(1)
 
 @cli.command('db-initialize')
-@click.argument('dbname')
+@click.argument('dbname', required=True)
+@click.option('--demo/--no-demo', type=bool, default=False)
+@click.option('--lang', default='en_US')
+@click.option('--password', default=None)
+@click.option('--country', default=None)
 @click.pass_context
-def db_initialize_database(ctx, dbname):
-    ctx.obj.start_odoo(
-        ['--stop-after-init', '--max-cron-threads=0', '--pidfile=/dev/null'],
-        no_http=True,
-        initialize=True
-    )
-    ctx.obj.db.initialize(dbname)
+def db_initialize_database(ctx, dbname, demo, lang, password, country):
+    ctx.obj.start_odoo()
+    kwargs = {}
+    if password:
+        kwargs['user_password'] = password
+    if country and ctx.obj.odoo.release.version_info > (8,):
+        kwargs['country_code'] = country
+    ctx.obj.db.initialize(dbname, demo, lang, **kwargs)
 
 
 @cli.command('db-drop')
