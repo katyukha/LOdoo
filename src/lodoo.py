@@ -692,7 +692,7 @@ def db_is_initialized_database(ctx, dbname):
 @click.argument('dbname', required=True)
 @click.option('--demo/--no-demo', type=bool, default=False)
 @click.option('--lang', default='en_US')
-@click.option('--password', default=None)
+@click.option('--password', default='admin')
 @click.option('--country', default=None)
 @click.pass_context
 def db_initialize_database(ctx, dbname, demo, lang, password, country):
