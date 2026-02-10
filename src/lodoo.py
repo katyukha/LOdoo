@@ -68,7 +68,6 @@ LBLUEC = '\x1b[94m'
 
 # Check Odoo API version
 odoo._api_v7 = odoo.release.version_info < (8,)
-odoo._api_v16 = odoo.release.version_info < (17,)
 
 # Prepare odoo environments
 os.putenv('TZ', 'UTC')
@@ -412,10 +411,6 @@ class LocalDBService(object):
     def initialize(self, dbname, demo, lang, **kwargs):
         user_password = kwargs.pop('user_password', None)
         self.odoo.service.db._initialize_db(id, dbname, demo, lang, user_password, **kwargs)
-        # with self.cursor(dbname) as cr:
-        #     self.odoo.modules.db.initialize(cr)
-        #     cr.commit()
-
 
     def _restore_database_v7(self, db_name, file_path):
         """ Implement specific restore of database for Odoo 7.0
@@ -548,7 +543,7 @@ class LOdoo(object):
         self._registries = {}
         self._db_service = None
 
-    def start_odoo(self, options=None, no_http=False, initialize=False):
+    def start_odoo(self, options=None, no_http=False):
         """ Start the odoo services.
             Optionally provide extra options
         """
@@ -570,9 +565,6 @@ class LOdoo(object):
             options.append('--no-xmlrpc')
         elif no_http:
             options.append('--no-http')
-
-        if initialize:
-            options.append('--init=base,web')
 
         odoo.tools.config.parse_config(options)
         if odoo.tools.config.get('sentry_enabled', False):
@@ -696,14 +688,17 @@ def db_is_initialized_database(ctx, dbname):
 @click.option('--country', default=None)
 @click.pass_context
 def db_initialize_database(ctx, dbname, demo, lang, password, country):
-    ctx.obj.start_odoo()
+    ctx.obj.start_odoo(['--logfile=/dev/null'])
+    success = ctx.obj.db.is_initialized(dbname)
+    if success:
+        _logger.warning('Initialize DB: %s has already initialized', dbname)
+        ctx.exit(1)
     kwargs = {}
     if password:
         kwargs['user_password'] = password
     if country and ctx.obj.odoo.release.version_info > (8,):
         kwargs['country_code'] = country
     ctx.obj.db.initialize(dbname, demo, lang, **kwargs)
-
 
 @cli.command('db-drop')
 @click.argument('dbname')
