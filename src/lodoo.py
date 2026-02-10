@@ -680,7 +680,7 @@ def db_exists_database(ctx, dbname):
 @click.argument('dbname')
 @click.pass_context
 def db_is_initialized_database(ctx, dbname):
-    ctx.obj.start_odoo(['--logfile=/dev/null'])
+    ctx.obj.start_odoo()
     success = ctx.obj.db.is_initialized(dbname)
     if not success:
         ctx.exit(1)
@@ -689,8 +689,12 @@ def db_is_initialized_database(ctx, dbname):
 @click.argument('dbname')
 @click.pass_context
 def db_initialize_database(ctx, dbname):
-    ctx.obj.start_odoo(initialize=True)
-    # ctx.obj.db.initialize(dbname)
+    ctx.obj.start_odoo(
+        ['--stop-after-init', '--max-cron-threads=0', '--pidfile=/dev/null'],
+        no_http=True,
+        initialize=True
+    )
+    ctx.obj.db.initialize(dbname)
 
 
 @cli.command('db-drop')
