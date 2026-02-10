@@ -410,7 +410,7 @@ class LocalDBService(object):
         return success
 
     def initialize(self, dbname, demo, lang, **kwargs):
-        self.odoo.service.db._initialize(dbname, demo, lang, **kwargs)
+        self.odoo.service.db._initialize_db(dbname, demo, lang, **kwargs)
         # with self.cursor(dbname) as cr:
         #     self.odoo.modules.db.initialize(cr)
         #     cr.commit()
