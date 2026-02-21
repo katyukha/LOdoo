@@ -16,7 +16,7 @@ jobs:
         run: pip install flake8 && flake8 --verbose .
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     container:
       image: odoo:${{ matrix.odoo }}
       options: --user root

@@ -410,7 +410,8 @@ class LocalDBService(object):
 
     def initialize(self, dbname, demo, lang, **kwargs):
         user_password = kwargs.pop('user_password', None)
-        self.odoo.service.db._initialize_db(id, dbname, demo, lang, user_password, **kwargs)
+        self.odoo.service.db._initialize_db(
+            id, dbname, demo, lang, user_password, **kwargs)
 
     def _restore_database_v7(self, db_name, file_path):
         """ Implement specific restore of database for Odoo 7.0
@@ -671,6 +672,7 @@ def db_exists_database(ctx, dbname):
     if not success:
         ctx.exit(1)
 
+
 @cli.command('db-is-initialized')
 @click.argument('dbname')
 @click.pass_context
@@ -679,6 +681,7 @@ def db_is_initialized_database(ctx, dbname):
     success = ctx.obj.db.is_initialized(dbname)
     if not success:
         ctx.exit(1)
+
 
 @cli.command('db-initialize')
 @click.argument('dbname', required=True)
@@ -699,6 +702,7 @@ def db_initialize_database(ctx, dbname, demo, lang, password, country):
     if country and ctx.obj.odoo.release.version_info > (8,):
         kwargs['country_code'] = country
     ctx.obj.db.initialize(dbname, demo, lang, **kwargs)
+
 
 @cli.command('db-drop')
 @click.argument('dbname')
