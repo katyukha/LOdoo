@@ -9,3 +9,5 @@ htmlcov
 lodoo.egg-info
 /build
 /dist
+/config
+/CLAUDE.md

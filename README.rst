@@ -4,7 +4,8 @@ LOdoo
 
 CLI to manage locally-installed Odoo.
 
-This script is used by [odoo-helper-scripts](https://katyukha.gitlab.io/odoo-helper-scripts/)
+This script is used by [odoo-helper-scripts](https://github.com/katyukha/odoo-helper-scripts)
+and [OdooD](https://github.com/katyukha/odood)
 to manage locally-installed odoo.
 
 For example, it provides CLI commands, like:
@@ -29,6 +30,7 @@ For example, it provides CLI commands, like:
 Supported odoo versions
 -----------------------
 
+- Odoo 19.0
 - Odoo 18.0
 - Odoo 17.0
 - Odoo 16.0

@@ -1,0 +1,176 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Run flake8
+        run: pip install flake8 && flake8 --verbose .
+
+  test:
+    runs-on: ubuntu-22.04
+    needs:
+      - lint
+    container:
+      image: odoo:${{ matrix.odoo }}
+      options: --user root
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - odoo: "19.0"
+            postgres: "15"
+            py: "3"
+            pip_flags: "--break-system-packages"
+            init_cmd: "odoo"
+          - odoo: "18.0"
+            postgres: "15"
+            py: "3"
+            pip_flags: "--break-system-packages"
+            init_cmd: "odoo"
+          - odoo: "17.0"
+            postgres: "15"
+            py: "3"
+            pip_flags: ""
+            init_cmd: "odoo"
+          - odoo: "16.0"
+            postgres: "15"
+            py: "3"
+            pip_flags: ""
+            init_cmd: "odoo"
+          - odoo: "15.0"
+            postgres: "15"
+            py: "3"
+            pip_flags: ""
+            init_cmd: "odoo"
+          #- odoo: "14.0"
+            #postgres: "11"
+            #py: "3"
+            #pip_flags: ""
+            #init_cmd: "odoo"
+          #- odoo: "13.0"
+            #postgres: "14"
+            #py: "3"
+            #pip_flags: ""
+            #init_cmd: "odoo"
+          #- odoo: "12.0"
+            #postgres: "11"
+            #py: "3"
+            #pip_flags: ""
+            #init_cmd: "odoo"
+          #- odoo: "11.0"
+            #postgres: "10"
+            #py: "3"
+            #pip_flags: ""
+            #init_cmd: "odoo"
+          #- odoo: "10.0"
+            #postgres: "9.6"
+            #py: "2"
+            #pip_flags: ""
+            #init_cmd: "odoo"
+          #- odoo: "9.0"
+            #postgres: "9.4"
+            #py: "2"
+            #pip_flags: ""
+            #init_cmd: "openerp-server"
+            #apt_python_dev: "true"
+          #- odoo: "8.0"
+            #postgres: "9.4"
+            #py: "2"
+            #pip_flags: ""
+            #init_cmd: "openerp-server"
+            #apt_python_dev: "true"
+    services:
+      db:
+        image: postgres:${{ matrix.postgres }}
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+          POSTGRES_DB: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_PY_VERSION: ${{ matrix.py }}
+      HOST: db
+      USER: odoo
+      PASSWORD: odoo
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Install system dependencies
+        if: ${{ matrix.apt_python_dev == 'true' }}
+        run: apt-get update && apt-get install -y python-dev
+
+      - name: Install Python dependencies
+        run: |
+          if [ "${{ matrix.py }}" = "2" ]; then
+            python2 -m pip install --user coverage==5
+            python2 -m pip install --user click==7.1.2
+          else
+            python3 -m pip install ${{ matrix.pip_flags }} coverage
+            python3 -m pip install ${{ matrix.pip_flags }} -r requirements.txt
+          fi
+
+      - name: Init Odoo config
+        run: /entrypoint.sh ${{ matrix.init_cmd }} -s --stop-after-init
+
+      - name: Run tests
+        run: bash .ci/test-cli.bash
+
+      - name: Coverage report
+        if: always()
+        run: python${{ matrix.py }} -m coverage report
+
+      - name: Rename coverage file
+        if: always()
+        run: mv .coverage coverage.test-${{ matrix.odoo }}
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage.test-${{ matrix.odoo }}
+          path: coverage.test-${{ matrix.odoo }}
+          retention-days: 10
+
+  #coverage:
+    #runs-on: ubuntu-latest
+    #needs: [test]
+    #if: always()
+    #steps:
+      #- uses: actions/checkout@v4
+      #- uses: actions/setup-python@v5
+        #with:
+          #python-version: '3.x'
+      #- name: Install coverage
+        #run: pip install coverage
+      #- name: Download all coverage artifacts
+        #uses: actions/download-artifact@v4
+        #with:
+          #pattern: coverage.test-*
+          #merge-multiple: true
+      #- name: Combine coverage
+        #run: python3 -m coverage combine coverage.*
+      #- name: Coverage report
+        #run: python3 -m coverage report
+      #- name: Generate HTML report
+        #run: python3 -m coverage html
+      #- name: Upload combined coverage
+        #uses: actions/upload-artifact@v4
+        #with:
+          #name: coverage-combined
+          #path: |
+            #htmlcov
+            #.coverage
+          #retention-days: 14

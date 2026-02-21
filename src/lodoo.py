@@ -313,7 +313,7 @@ class LocalRegistry(object):
             pot_file = os.path.join(i18n_dir, '%s.pot' % module_name)
 
             with contextlib.closing(io.BytesIO()) as buf:
-                self.odoo.tools.translate.trans_export(
+                self.odoo.tools.trans_export(
                     None, [module_name], buf, 'po', self.cr)
                 data = buf.getvalue().decode('utf-8')
 
@@ -401,6 +401,17 @@ class LocalDBService(object):
         if odoo.release.version_info < (9,):
             return self.list()
         return self.odoo.service.db.list_dbs(True)
+
+    def is_initialized(self, dbname):
+        with self.cursor(dbname) as cr:
+            cr.execute("SET SESSION lock_timeout = '15s'")
+            success = self.odoo.modules.db.is_initialized(cr)
+        return success
+
+    def initialize(self, dbname, demo, lang, **kwargs):
+        user_password = kwargs.pop('user_password', None)
+        self.odoo.service.db._initialize_db(
+            id, dbname, demo, lang, user_password, **kwargs)
 
     def _restore_database_v7(self, db_name, file_path):
         """ Implement specific restore of database for Odoo 7.0
@@ -660,6 +671,37 @@ def db_exists_database(ctx, dbname):
     success = ctx.obj.db.db_exist(dbname)
     if not success:
         ctx.exit(1)
+
+
+@cli.command('db-is-initialized')
+@click.argument('dbname')
+@click.pass_context
+def db_is_initialized_database(ctx, dbname):
+    ctx.obj.start_odoo(['--logfile=/dev/null'])
+    success = ctx.obj.db.is_initialized(dbname)
+    if not success:
+        ctx.exit(1)
+
+
+@cli.command('db-initialize')
+@click.argument('dbname', required=True)
+@click.option('--demo/--no-demo', type=bool, default=False)
+@click.option('--lang', default='en_US')
+@click.option('--password', default='admin')
+@click.option('--country', default=None)
+@click.pass_context
+def db_initialize_database(ctx, dbname, demo, lang, password, country):
+    ctx.obj.start_odoo(['--logfile=/dev/null'])
+    success = ctx.obj.db.is_initialized(dbname)
+    if success:
+        _logger.warning('Initialize DB: %s has already initialized', dbname)
+        ctx.exit(1)
+    kwargs = {}
+    if password:
+        kwargs['user_password'] = password
+    if country and ctx.obj.odoo.release.version_info > (8,):
+        kwargs['country_code'] = country
+    ctx.obj.db.initialize(dbname, demo, lang, **kwargs)
 
 
 @cli.command('db-drop')
