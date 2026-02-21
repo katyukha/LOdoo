@@ -17,6 +17,8 @@ jobs:
 
   test:
     runs-on: ubuntu-22.04
+    needs:
+      - lint
     container:
       image: odoo:${{ matrix.odoo }}
       options: --user root
@@ -142,33 +144,33 @@ jobs:
           path: coverage.test-${{ matrix.odoo }}
           retention-days: 10
 
-  coverage:
-    runs-on: ubuntu-latest
-    needs: [test]
-    if: always()
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-      - name: Install coverage
-        run: pip install coverage
-      - name: Download all coverage artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: coverage.test-*
-          merge-multiple: true
-      - name: Combine coverage
-        run: python3 -m coverage combine coverage.*
-      - name: Coverage report
-        run: python3 -m coverage report
-      - name: Generate HTML report
-        run: python3 -m coverage html
-      - name: Upload combined coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-combined
-          path: |
-            htmlcov
-            .coverage
-          retention-days: 14
+  #coverage:
+    #runs-on: ubuntu-latest
+    #needs: [test]
+    #if: always()
+    #steps:
+      #- uses: actions/checkout@v4
+      #- uses: actions/setup-python@v5
+        #with:
+          #python-version: '3.x'
+      #- name: Install coverage
+        #run: pip install coverage
+      #- name: Download all coverage artifacts
+        #uses: actions/download-artifact@v4
+        #with:
+          #pattern: coverage.test-*
+          #merge-multiple: true
+      #- name: Combine coverage
+        #run: python3 -m coverage combine coverage.*
+      #- name: Coverage report
+        #run: python3 -m coverage report
+      #- name: Generate HTML report
+        #run: python3 -m coverage html
+      #- name: Upload combined coverage
+        #uses: actions/upload-artifact@v4
+        #with:
+          #name: coverage-combined
+          #path: |
+            #htmlcov
+            #.coverage
+          #retention-days: 14
