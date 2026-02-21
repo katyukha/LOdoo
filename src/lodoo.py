@@ -313,7 +313,7 @@ class LocalRegistry(object):
             pot_file = os.path.join(i18n_dir, '%s.pot' % module_name)
 
             with contextlib.closing(io.BytesIO()) as buf:
-                self.odoo.tools.translate.trans_export(
+                self.odoo.tools.trans_export(
                     None, [module_name], buf, 'po', self.cr)
                 data = buf.getvalue().decode('utf-8')
 
