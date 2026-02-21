@@ -104,7 +104,7 @@ jobs:
       USER: odoo
       PASSWORD: odoo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v2
 
       - name: Install system dependencies
         if: ${{ matrix.apt_python_dev == 'true' }}
