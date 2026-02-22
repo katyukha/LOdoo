@@ -313,7 +313,22 @@ class LocalRegistry(object):
             pot_file = os.path.join(i18n_dir, '%s.pot' % module_name)
 
             with contextlib.closing(io.BytesIO()) as buf:
-                self.odoo.tools.trans_export(
+                # Compatibility between different versions:
+                # - Odoo tools has import `from .translate import *`
+                # - Some odoo versions has `translate` function in
+                # `odoo.tools.translate` module, that shadows
+                # `odoo.tools.translate` module
+                #
+                # Thus, at first, we try to import `trans_export` directly from
+                # tools, if it is imported as wildcard.
+                # And if it does not work, then we try to import it from
+                # `translate` module
+                try:
+                    tr_export_fn = self.odoo.tools.trans_export
+                except AttributeError:
+                    tr_export_fn = self.odoo.tools.translate.trans_export
+
+                tr_export_fn(
                     None, [module_name], buf, 'po', self.cr)
                 data = buf.getvalue().decode('utf-8')
 
