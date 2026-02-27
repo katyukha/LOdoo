@@ -184,6 +184,15 @@ class LocalRegistry(object):
         self.env.cr.commit()
 
     def compute_translation_rate(self, lang, addons):
+        # ir.translation was removed in Odoo 16.0; translations are now stored
+        # as jsonb columns per model field and managed through a new internal
+        # API.  Reimplementing this check against the new architecture is
+        # non-trivial, so this method is not supported on Odoo 16+.
+        if self.odoo.release.version_info >= (16,):
+            raise NotImplementedError(
+                "compute_translation_rate is not supported for Odoo 16+: "
+                "the ir.translation model was removed in 16.0."
+            )
         trans = self.env['ir.translation'].search([
             ('module', 'in', addons),
             ('lang', '=', lang),
@@ -234,6 +243,9 @@ class LocalRegistry(object):
     def print_translation_rate(self, translation_rate, colored=False):
         """ Print translation rate computed by `compute_translation_rate`
         """
+        if not translation_rate['by_addon']:
+            print("No translation data.")
+            return
         name_col_width = max([len(i) for i in translation_rate['by_addon']])
 
         header_format_str = "%%-%ds | %%10s | %%15s | %%+10s" % name_col_width
@@ -305,6 +317,8 @@ class LocalRegistry(object):
     def generate_pot_file(self, module_name, remove_dates):
         """ Generate .pot file for a module
         """
+        if not re.match(r'^[a-zA-Z0-9_]+$', module_name):
+            raise ValueError("Invalid module name: %r" % module_name)
         try:
             module_path = self.odoo.modules.module.get_module_path(module_name)
             i18n_dir = os.path.join(module_path, 'i18n')
@@ -425,8 +439,16 @@ class LocalDBService(object):
 
     def initialize(self, dbname, demo, lang, **kwargs):
         user_password = kwargs.pop('user_password', None)
+        # The first argument to _initialize_db is a numeric message/thread ID.
+        # In early Odoo versions (7.0), long-running database operations were
+        # dispatched as threaded jobs and this ID was used to store and later
+        # retrieve the result via the internal job-result registry.  When
+        # calling the function directly (outside the RPC/dispatch layer) the
+        # value is not used to look up any result, so any integer is valid.
+        # We pass 1 as a conventional placeholder, matching the pattern used
+        # in Odoo's own test helpers and direct internal call sites.
         self.odoo.service.db._initialize_db(
-            id, dbname, demo, lang, user_password, **kwargs)
+            1, dbname, demo, lang, user_password, **kwargs)
 
     def _restore_database_v7(self, db_name, file_path):
         """ Implement specific restore of database for Odoo 7.0
@@ -515,9 +537,16 @@ class LocalDBService(object):
         """
 
         with self.cursor(dbname) as cr:
-            # Just copy-paste from original Odoo code
-            pg_version = "%d.%d" % divmod(
-                cr._obj.connection.server_version / 100, 100)
+            # Query the version string directly from PostgreSQL instead of
+            # reading the psycopg2-internal server_version integer.  The
+            # integer encoding changed at PG 10 (MAJOR*10000+MINOR*100+PATCH
+            # before, MAJOR*10000+MINOR after), which made the old divmod
+            # formula produce "14.0" instead of "14.5" for PG 10+.  Using
+            # SHOW also avoids touching cr._obj, a psycopg2 internal that
+            # does not exist in psycopg3.
+            cr.execute("SHOW server_version")
+            pg_version_full = cr.fetchone()[0]  # e.g. "14.5" or "9.6.23"
+            pg_version = '.'.join(pg_version_full.split('.')[:2])
             cr.execute("""
                 SELECT name, latest_version
                 FROM ir_module_module
@@ -554,6 +583,8 @@ class LOdoo(object):
         return cls.__lodoo
 
     def __init__(self, conf_path=None):
+        if hasattr(self, '_odoo'):
+            return
         self._conf_path = conf_path
         self._odoo = None
         self._registries = {}
@@ -878,7 +909,8 @@ def odoo_run_python_script(ctx, dbname, script_path):
         ['--stop-after-init', '--max-cron-threads=0', '--pidfile=/dev/null'],
         no_http=True)
 
-    context = {
+    script_globals = {
+        '__builtins__': __builtins__,
         'env': ctx.obj[dbname].env,
         'cr': ctx.obj[dbname].cr,
         'registry': ctx.obj[dbname].registry,
@@ -886,10 +918,10 @@ def odoo_run_python_script(ctx, dbname, script_path):
     }
 
     if sys.version_info.major < 3:
-        execfile(script_path, globals(), context)  # noqa
+        execfile(script_path, script_globals)  # noqa
     else:
         with open(script_path, "rt") as script_file:
-            exec(script_file.read(), globals(), context)
+            exec(script_file.read(), script_globals)
 
 
 if __name__ == '__main__':
