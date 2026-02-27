@@ -243,6 +243,9 @@ class LocalRegistry(object):
     def print_translation_rate(self, translation_rate, colored=False):
         """ Print translation rate computed by `compute_translation_rate`
         """
+        if not translation_rate['by_addon']:
+            print("No translation data.")
+            return
         name_col_width = max([len(i) for i in translation_rate['by_addon']])
 
         header_format_str = "%%-%ds | %%10s | %%15s | %%+10s" % name_col_width
