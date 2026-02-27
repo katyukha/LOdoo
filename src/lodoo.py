@@ -427,8 +427,16 @@ class LocalDBService(object):
 
     def initialize(self, dbname, demo, lang, **kwargs):
         user_password = kwargs.pop('user_password', None)
+        # The first argument to _initialize_db is a numeric message/thread ID.
+        # In early Odoo versions (7.0), long-running database operations were
+        # dispatched as threaded jobs and this ID was used to store and later
+        # retrieve the result via the internal job-result registry.  When
+        # calling the function directly (outside the RPC/dispatch layer) the
+        # value is not used to look up any result, so any integer is valid.
+        # We pass 1 as a conventional placeholder, matching the pattern used
+        # in Odoo's own test helpers and direct internal call sites.
         self.odoo.service.db._initialize_db(
-            id, dbname, demo, lang, user_password, **kwargs)
+            1, dbname, demo, lang, user_password, **kwargs)
 
     def _restore_database_v7(self, db_name, file_path):
         """ Implement specific restore of database for Odoo 7.0
