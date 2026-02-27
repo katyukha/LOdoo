@@ -583,6 +583,8 @@ class LOdoo(object):
         return cls.__lodoo
 
     def __init__(self, conf_path=None):
+        if hasattr(self, '_odoo'):
+            return
         self._conf_path = conf_path
         self._odoo = None
         self._registries = {}
