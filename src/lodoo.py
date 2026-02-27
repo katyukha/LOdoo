@@ -305,6 +305,8 @@ class LocalRegistry(object):
     def generate_pot_file(self, module_name, remove_dates):
         """ Generate .pot file for a module
         """
+        if not re.match(r'^[a-zA-Z0-9_]+$', module_name):
+            raise ValueError("Invalid module name: %r" % module_name)
         try:
             module_path = self.odoo.modules.module.get_module_path(module_name)
             i18n_dir = os.path.join(module_path, 'i18n')
@@ -878,7 +880,8 @@ def odoo_run_python_script(ctx, dbname, script_path):
         ['--stop-after-init', '--max-cron-threads=0', '--pidfile=/dev/null'],
         no_http=True)
 
-    context = {
+    script_globals = {
+        '__builtins__': __builtins__,
         'env': ctx.obj[dbname].env,
         'cr': ctx.obj[dbname].cr,
         'registry': ctx.obj[dbname].registry,
@@ -886,10 +889,10 @@ def odoo_run_python_script(ctx, dbname, script_path):
     }
 
     if sys.version_info.major < 3:
-        execfile(script_path, globals(), context)  # noqa
+        execfile(script_path, script_globals)  # noqa
     else:
         with open(script_path, "rt") as script_file:
-            exec(script_file.read(), globals(), context)
+            exec(script_file.read(), script_globals)
 
 
 if __name__ == '__main__':
