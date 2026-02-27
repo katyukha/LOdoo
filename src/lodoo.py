@@ -184,6 +184,15 @@ class LocalRegistry(object):
         self.env.cr.commit()
 
     def compute_translation_rate(self, lang, addons):
+        # ir.translation was removed in Odoo 16.0; translations are now stored
+        # as jsonb columns per model field and managed through a new internal
+        # API.  Reimplementing this check against the new architecture is
+        # non-trivial, so this method is not supported on Odoo 16+.
+        if self.odoo.release.version_info >= (16,):
+            raise NotImplementedError(
+                "compute_translation_rate is not supported for Odoo 16+: "
+                "the ir.translation model was removed in 16.0."
+            )
         trans = self.env['ir.translation'].search([
             ('module', 'in', addons),
             ('lang', '=', lang),
