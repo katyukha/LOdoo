@@ -534,9 +534,16 @@ class LocalDBService(object):
         """
 
         with self.cursor(dbname) as cr:
-            # Just copy-paste from original Odoo code
-            pg_version = "%d.%d" % divmod(
-                cr._obj.connection.server_version / 100, 100)
+            # Query the version string directly from PostgreSQL instead of
+            # reading the psycopg2-internal server_version integer.  The
+            # integer encoding changed at PG 10 (MAJOR*10000+MINOR*100+PATCH
+            # before, MAJOR*10000+MINOR after), which made the old divmod
+            # formula produce "14.0" instead of "14.5" for PG 10+.  Using
+            # SHOW also avoids touching cr._obj, a psycopg2 internal that
+            # does not exist in psycopg3.
+            cr.execute("SHOW server_version")
+            pg_version_full = cr.fetchone()[0]  # e.g. "14.5" or "9.6.23"
+            pg_version = '.'.join(pg_version_full.split('.')[:2])
             cr.execute("""
                 SELECT name, latest_version
                 FROM ir_module_module
