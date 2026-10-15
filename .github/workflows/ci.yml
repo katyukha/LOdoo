@@ -128,7 +128,7 @@ jobs:
           fi
 
       - name: Init Odoo config
-        run: /entrypoint.sh ${{ matrix.init_cmd }} -s --stop-after-init
+        run: /entrypoint.sh ${{ matrix.init_cmd }} --save --stop-after-init
 
       - name: Run tests
         run: bash .ci/test-cli.bash
