@@ -26,6 +26,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - odoo: "20.0"
+            postgres: "15"
+            py: "3"
+            pip_flags: "--break-system-packages"
+            init_cmd: "odoo"
           - odoo: "19.0"
             postgres: "15"
             py: "3"
