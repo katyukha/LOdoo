@@ -26,6 +26,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - odoo: "20.0"
+            postgres: "16"
+            py: "3"
+            pip_flags: "--break-system-packages"
+            init_cmd: "odoo"
           - odoo: "19.0"
             postgres: "15"
             py: "3"
@@ -123,7 +128,7 @@ jobs:
           fi
 
       - name: Init Odoo config
-        run: /entrypoint.sh ${{ matrix.init_cmd }} -s --stop-after-init
+        run: /entrypoint.sh ${{ matrix.init_cmd }} --save --stop-after-init
 
       - name: Run tests
         run: bash .ci/test-cli.bash
