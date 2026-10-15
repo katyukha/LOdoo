@@ -20,7 +20,9 @@ import sys
 import json
 import atexit
 import logging
+import zipfile
 import functools
+import subprocess
 import contextlib
 
 import click
@@ -342,8 +344,12 @@ class LocalRegistry(object):
                 except AttributeError:
                     tr_export_fn = self.odoo.tools.translate.trans_export
 
-                tr_export_fn(
-                    None, [module_name], buf, 'po', self.cr)
+                if self.odoo.release.version_info >= (19,):
+                    # trans_export() takes an Environment from 19.0 on,
+                    # a cursor up to and including 18.0.
+                    tr_export_fn(None, [module_name], buf, 'po', self.env)
+                else:
+                    tr_export_fn(None, [module_name], buf, 'po', self.cr)
                 data = buf.getvalue().decode('utf-8')
 
             if remove_dates:
@@ -424,11 +430,22 @@ class LocalDBService(object):
         if self.odoo._api_v7:
             return self.odoo.netsvc.ExportService.getService('db').exp_create(
                 *args, **kwargs)
+        if self.odoo.release.version_info >= (20,):
+            dbname, demo, lang = args
+            # 20's create() is keyword-only and requires user_password;
+            # default to 'admin', matching exp_create_database's old
+            # default on 19 and below.
+            user_password = kwargs.get('user_password') or 'admin'
+            return self.odoo.modules.db.create(
+                dbname, demo=demo, lang=lang, user_password=user_password,
+                country_code=kwargs.get('country_code'))
         return self.odoo.service.db.exp_create_database(*args, **kwargs)
 
     def list_databases(self):
         if odoo.release.version_info < (9,):
             return self.list()
+        if self.odoo.release.version_info >= (20,):
+            return self.odoo.modules.db.list_dbs(force=True)
         return self.odoo.service.db.list_dbs(True)
 
     def is_initialized(self, dbname):
@@ -439,6 +456,13 @@ class LocalDBService(object):
 
     def initialize(self, dbname, demo, lang, **kwargs):
         user_password = kwargs.pop('user_password', None)
+        if self.odoo.release.version_info >= (20,):
+            # 20's _initialize_db() dropped the leading numeric
+            # message/thread ID and is keyword-only.
+            self.odoo.modules.db._initialize_db(
+                dbname, demo=demo, lang=lang, user_password=user_password,
+                **kwargs)
+            return
         # The first argument to _initialize_db is a numeric message/thread ID.
         # In early Odoo versions (7.0), long-running database operations were
         # dispatched as threaded jobs and this ID was used to store and later
@@ -485,6 +509,38 @@ class LocalDBService(object):
         if self.odoo._api_v7:
             return self._restore_database_v7(db_name, dump_file)
 
+        if self.odoo.release.version_info >= (20,):
+            # 20's own restore() is zip-only: it unzips the dump
+            # unconditionally (odoo-bin db load --help points non-zip
+            # dumps at pg_restore instead). Decide the format BEFORE
+            # creating anything: restore() creates the empty db before it
+            # opens the file, so calling it on a non-zip dump raises
+            # zipfile.BadZipFile and leaves an empty db behind.
+            if zipfile.is_zipfile(dump_file):
+                self.odoo.modules.db.restore(db_name, dump_file)
+                return True
+
+            # <= 7.0 / pg_restore custom-format dump: restore it the same
+            # way 19.0's service.db.restore_db() else-branch did, except
+            # that on failure we drop the database this call just created
+            # instead of leaving it behind, as 19.0 used to.
+            if self.odoo.modules.db.exist(db_name):
+                _logger.warning('RESTORE DB: %s already exists', db_name)
+                raise Exception("Database already exists")
+            self.odoo.modules.db._create_empty_database(db_name)
+            pg_restore = self.odoo.tools.misc.find_pg_tool('pg_restore')
+            r = subprocess.run(
+                [pg_restore, '--dbname=' + db_name, '--no-owner', dump_file],
+                env=self.odoo.tools.misc.exec_pg_environ(),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.STDOUT,
+            )
+            if r.returncode != 0:
+                self.odoo.modules.db.drop(db_name)
+                raise Exception("Couldn't restore database")
+            self.odoo.modules.registry.Registry.new(db_name)
+            return True
+
         self.odoo.service.db.restore_db(db_name, dump_file)
         return True
 
@@ -526,6 +582,19 @@ class LocalDBService(object):
                 raise Exception("Odoo v7 does not support non-sql backups!")
             return self._backup_database_v7(db_name, file_path)
 
+        if self.odoo.release.version_info >= (20,):
+            # Keep the CLI contract: --format sql has always meant
+            # "pg_dump --format=c, not zip". Pre-20 dump_db() only ever
+            # checked for 'zip' and sent anything else down that path, but
+            # 20's dump() validates the literal value and only accepts
+            # 'zip' or 'dump' for that same path, so translate it here.
+            if backup_format == 'sql':
+                backup_format = 'dump'
+            with open(file_path, 'wb') as f:
+                self.odoo.modules.db.dump(
+                    db_name, f, backup_format=backup_format)
+            return True
+
         with open(file_path, 'wb') as f:
             self.odoo.service.db.dump_db(db_name, f, backup_format)
         return True
@@ -563,6 +632,33 @@ class LocalDBService(object):
                 'modules': modules,
             }
         return json.dumps(manifest, indent=4)
+
+    def drop(self, admin_passwd, dbname):
+        if self.odoo.release.version_info >= (20,):
+            # 20's drop() takes no admin password.
+            self.odoo.modules.db.drop(dbname)
+            return True
+        return self.dispatch('drop', (admin_passwd, dbname))
+
+    def rename(self, admin_passwd, oldname, newname):
+        if self.odoo.release.version_info >= (20,):
+            # 20's rename() takes no admin password.
+            self.odoo.modules.db.rename(oldname, newname)
+            return True
+        return self.dispatch('rename', (admin_passwd, oldname, newname))
+
+    def duplicate_database(self, admin_passwd, srcname, newname):
+        if self.odoo.release.version_info >= (20,):
+            # 20's duplicate() takes no admin password.
+            self.odoo.modules.db.duplicate(srcname, newname)
+            return True
+        return self.dispatch(
+            'duplicate_database', (admin_passwd, srcname, newname))
+
+    def db_exist(self, dbname):
+        if self.odoo.release.version_info >= (20,):
+            return self.odoo.modules.db.exist(dbname)
+        return self.dispatch('db_exist', (dbname,))
 
     def __getattr__(self, name):
         def db_service_method(*args):
