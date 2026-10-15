@@ -27,7 +27,7 @@ jobs:
       matrix:
         include:
           - odoo: "20.0"
-            postgres: "15"
+            postgres: "16"
             py: "3"
             pip_flags: "--break-system-packages"
             init_cmd: "odoo"
